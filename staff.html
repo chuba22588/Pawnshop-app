@@ -17,10 +17,9 @@
 
         button { background-color: #1e293b; color: white; cursor: pointer; font-weight: 500; border: none; letter-spacing: 0.5px; }
         button:hover { background-color: #0f172a; }
-        .btn-primary { background-color: #1e3a8a; } /* Corporate Navy */
+        .btn-primary { background-color: #1e3a8a; }
         .btn-primary:hover { background-color: #172554; }
 
-        /* PROFESSIONAL FINANCIAL TABLE */
         .table-container { overflow-x: auto; border-radius: 4px; border: 1px solid #cbd5e1; }
         table { width: 100%; border-collapse: collapse; background: white; text-align: left; }
         th, td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
@@ -30,7 +29,7 @@
         td { color: #1e293b; font-size: 14px; }
 
         .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; border: 1px solid transparent; }
-        .status-disponibil { background-color: #f8fafc; color: #334155; border-color: #cbd5e1; }
+        .status-disponibil { background-color: #f0fdf4; color: #166534; border-color: #bbf7d0; }
         .status-vandut { background-color: #f1f5f9; color: #94a3b8; }
         .status-rezervat { background-color: #fff1f2; color: #9f1239; border-color: #fecdd3; }
         .status-amanetat { background-color: #fefce8; color: #854d0e; border-color: #fef08a; }
@@ -74,7 +73,7 @@
         <div class="box" style="flex: 1; min-width: 300px;">
             <h3 style="font-size: 16px; margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Process Transaction</h3>
             <input type="number" id="tranz-obiect-id" placeholder="Item ID">
-            <input type="number" id="tranz-user-id" placeholder="Customer ID" value="1">
+            <input type="text" id="tranz-user-nume" placeholder="Customer Name (e.g., John Doe)">
             <select id="tranz-tip">
                 <option value="vanzare">Vanzare (Sell)</option>
                 <option value="amanet">Amanet (Pawn)</option>
@@ -108,10 +107,9 @@
 </div>
 
 <script>
+    // PUT YOUR NGROK LINK HERE
     const API_BASE = "https://lavonna-unskinned-unspontaneously.ngrok-free.dev";
     const reqHeaders = { "ngrok-skip-browser-warning": "true" };
-
-    function calculeazaSchimb() {
 
     function verificaParola() {
         if(document.getElementById('parola').value === 'admin123') {
@@ -135,29 +133,30 @@
 
         if(!n || !p) { alert("Validation Error: Name and Price required."); return; }
 
-        fetch(`${API_BASE}/adauga_obiect?nume=${n}&categorie=${c}&pret=${p}&data_scadenta=${d}`, { method: 'POST' })
+        fetch(`${API_BASE}/adauga_obiect?nume=${n}&categorie=${c}&pret=${p}&data_scadenta=${d}`, { method: 'POST', headers: reqHeaders })
         .then(res => res.json())
         .then(data => { alert("Success: Item Added to Database."); incarcaDate(); });
     }
 
     function proceseazaTranzactie() {
         let oid = document.getElementById("tranz-obiect-id").value;
-        let uid = document.getElementById("tranz-user-id").value;
+        let unume = document.getElementById("tranz-user-nume").value;
         let tip = document.getElementById("tranz-tip").value;
         let suma = document.getElementById("tranz-suma").value;
 
-        fetch(`${API_BASE}/adauga_tranzactie?obiect_id=${oid}&user_id=${uid}&tip_tranzactie=${tip}&suma=${suma}`, { method: 'POST' })
+        // Hardcoded user_id=1 for now, but legally captures the customer's name!
+        fetch(`${API_BASE}/adauga_tranzactie?obiect_id=${oid}&user_id=1&nume_client=${unume}&tip_tranzactie=${tip}&suma=${suma}`, { method: 'POST', headers: reqHeaders })
         .then(res => res.json())
         .then(data => { alert(data.mesaj || data.eroare); incarcaDate(); });
     }
 
     function incarcaDate() {
-        fetch(`${API_BASE}/obiecte`)
+        fetch(`${API_BASE}/obiecte`, { headers: reqHeaders })
             .then(res => res.json())
             .then(data => {
                 let html = "";
                 data.forEach(o => {
-                    let statusClass = "status-" + o.status.toLowerCase();
+                    let statusClass = "status-" + o.status.toLowerCase().trim();
                     html += `<tr>
                         <td style="color: #64748b; font-weight: 500;">${o.id}</td>
                         <td style="font-weight: 500;">${o.nume}</td>
@@ -170,7 +169,7 @@
                 document.getElementById("tabel-corp").innerHTML = html;
             });
 
-        fetch(`${API_BASE}/alerte`)
+        fetch(`${API_BASE}/alerte`, { headers: reqHeaders })
             .then(res => res.json())
             .then(data => {
                 let container = document.getElementById("alerts-container");
@@ -182,7 +181,7 @@
                     container.style.display = "none";
                 }
             });
-    }}
+    }
 </script>
 
 </body>
