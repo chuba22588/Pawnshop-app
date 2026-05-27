@@ -232,6 +232,15 @@
     <div class="card" id="lista-obiecte" style="padding: 10px 30px;">
         <p class="empty-state">Se încarcă vitrina...</p>
     </div>
+
+    <div class="card" style="border-color: #fca5a5; background-color: #fef2f2;">
+        <span class="section-label" style="color: #dc2626;">Zonă Staff - Ștergere Contract</span>
+        <div class="form-group">
+            <input type="number" id="delete-id" placeholder="ID Contract" style="flex: 2; border-color: #fca5a5;">
+            <button class="btn-accent" onclick="stergeContract()" style="flex: 1; background-color: #dc2626;">Șterge Definitiv</button>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -315,6 +324,32 @@
         .then(res => res.json())
         .then(data => { if (data.eroare) alert("Eroare: " + data.eroare); })
         .catch(err => console.log("Conexiune eșuată!"));
+    }
+
+    // ADAUGAT LA CERERE: Functia de stergere a contractului
+    function stergeContract() {
+        let id = document.getElementById("delete-id").value;
+        if(!id) return alert("Eroare: Introduceți un ID valid pentru ștergere.");
+
+        let confirmare = confirm(`ATENȚIE: Ești sigur că vrei să ștergi DEFINITIV contractul #${id}? Această acțiune este ireversibilă!`);
+
+        if(confirmare) {
+            fetch(`${API_BASE}/sterge_contract/${id}`, {
+                method: 'DELETE',
+                headers: reqHeaders
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.eroare) {
+                    alert("Eroare: " + data.eroare);
+                } else {
+                    alert("SISTEM: " + data.mesaj);
+                    document.getElementById("delete-id").value = "";
+                    incarcaObiecte(); // Reîncarcă lista de obiecte după ștergere
+                }
+            })
+            .catch(err => alert("Eroare de comunicare cu serverul."));
+        }
     }
 
     window.onload = incarcaObiecte;

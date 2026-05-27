@@ -229,3 +229,15 @@ def calculeaza_schimb(suma: float, valuta: str, directie: str = "to_ron"):
         total = round(suma * curs[v], 2)
         mesaj = f"{suma} {v} = {total} RON"
     return {"mesaj_rezultat": mesaj, "curs_folosit": curs[v]}
+
+
+@app.delete("/sterge_contract/{obiect_id}")
+def sterge_contract(obiect_id: int, db: Session = Depends(get_db)):
+    obiect = db.query(AmanetItem).filter(AmanetItem.id == obiect_id).first()
+    if not obiect:
+        return {"eroare": "Contractul nu a fost găsit în baza de date."}
+
+    db.delete(obiect)
+    db.commit()
+
+    return {"mesaj": f"Contractul #{obiect_id} a fost șters definitiv din sistem."}

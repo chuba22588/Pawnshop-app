@@ -231,9 +231,10 @@
 
                 <h3 style="margin: 0 0 15px 0; border: none; font-size: 16px;">Total de Încasat: <span id="val-total">0 RON</span></h3>
 
-                <div style="display: flex; gap: 10px;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="btn-outline" onclick="prelungesteContract()">Prelungire (Doar Dobândă)</button>
                     <button onclick="restituieObiect()">Restituire (Total)</button>
+                    <button class="btn-outline" style="color: #d90000; border-color: #d90000;" onclick="stergeContract()">Șterge Contract</button>
                 </div>
             </div>
         </div>
@@ -292,7 +293,6 @@
         });
     }
 
-    // FUNCȚIA NOUĂ: Căutare ID după nume
     function cautaIdDupaNume() {
         let nume = document.getElementById("search-name").value;
         if(!nume) return alert("Eroare: Introduceți un nume pentru căutare.");
@@ -357,6 +357,33 @@
         });
     }
 
+    // Funcție adăugată pentru Ștergere Contract
+    function stergeContract() {
+        let id = document.getElementById("manage-id").value;
+        if(!id) return alert("Eroare: Introduceți un ID valid.");
+
+        let confirmare = confirm(`ATENȚIE: Ești sigur că vrei să ștergi DEFINITIV contractul #${id}? Această acțiune este ireversibilă!`);
+
+        if(confirmare) {
+            fetch(`${API_BASE}/sterge_contract/${id}`, {
+                method: 'DELETE',
+                headers: reqHeaders
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.eroare) {
+                    alert("Eroare: " + data.eroare);
+                } else {
+                    alert("SISTEM: " + data.mesaj);
+                    document.getElementById("debt-panel").style.display = "none";
+                    document.getElementById("manage-id").value = "";
+                    incarcaDate();
+                }
+            })
+            .catch(err => alert("Eroare de comunicare cu serverul."));
+        }
+    }
+
     function incarcaDate() {
         fetch(`${API_BASE}/alerte_confiscare`, { headers: reqHeaders })
             .then(res => res.json())
@@ -371,7 +398,6 @@
         fetch(`${API_BASE}/obiecte`, { headers: reqHeaders })
             .then(res => res.json())
             .then(data => {
-                // Am adăugat și coloana pentru "Nume Client" în tabelul de inventar pentru a fi mai ușor de urmărit.
                 document.getElementById("tabel-corp").innerHTML = data.map(o => `
                     <tr>
                         <td><b>${o.id}</b></td>
