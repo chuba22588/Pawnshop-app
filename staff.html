@@ -90,6 +90,16 @@
             background-color: #eee;
         }
 
+        .btn-danger {
+            background-color: #a00;
+            color: #fff;
+            border: 1px solid #a00;
+        }
+
+        .btn-danger:hover {
+            background-color: #c00;
+        }
+
         .btn-small {
             width: auto;
             padding: 6px 12px;
@@ -231,11 +241,12 @@
 
                 <h3 style="margin: 0 0 15px 0; border: none; font-size: 16px;">Total de Încasat: <span id="val-total">0 RON</span></h3>
 
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button class="btn-outline" onclick="prelungesteContract()">Prelungire (Doar Dobândă)</button>
                     <button onclick="restituieObiect()">Restituire (Total)</button>
-                    <button class="btn-outline" style="color: #d90000; border-color: #d90000;" onclick="stergeContract()">Șterge Contract</button>
                 </div>
+
+                <button class="btn-danger" onclick="stergeContract()">Șterge Contract / Client</button>
             </div>
         </div>
     </div>
@@ -357,30 +368,26 @@
         });
     }
 
-    // Funcție adăugată pentru Ștergere Contract
+    // FUNCȚIA NOUĂ: Șterge Contract/Client
     function stergeContract() {
         let id = document.getElementById("manage-id").value;
         if(!id) return alert("Eroare: Introduceți un ID valid.");
 
-        let confirmare = confirm(`ATENȚIE: Ești sigur că vrei să ștergi DEFINITIV contractul #${id}? Această acțiune este ireversibilă!`);
-
-        if(confirmare) {
-            fetch(`${API_BASE}/sterge_contract/${id}`, {
-                method: 'DELETE',
-                headers: reqHeaders
-            })
+        if(confirm(`Sunteți sigur că doriți să ștergeți definitiv contractul/clientul cu ID-ul #${id}? Această acțiune este ireversibilă.`)) {
+            fetch(`${API_BASE}/sterge_contract/${id}`, { method: 'DELETE', headers: reqHeaders })
             .then(res => res.json())
             .then(data => {
-                if(data.eroare) {
-                    alert("Eroare: " + data.eroare);
-                } else {
-                    alert("SISTEM: " + data.mesaj);
-                    document.getElementById("debt-panel").style.display = "none";
-                    document.getElementById("manage-id").value = "";
-                    incarcaDate();
+                alert("SISTEM: " + (data.mesaj || "Înregistrarea a fost eliminată cu succes."));
+                document.getElementById("debt-panel").style.display = "none";
+                document.getElementById("manage-id").value = "";
+                if(document.getElementById("search-results-panel")) {
+                    document.getElementById("search-results-panel").style.display = "none";
                 }
+                incarcaDate();
             })
-            .catch(err => alert("Eroare de comunicare cu serverul."));
+            .catch(err => {
+                alert("Eroare la comunicarea cu serverul sau ruta de ștergere nu există.");
+            });
         }
     }
 

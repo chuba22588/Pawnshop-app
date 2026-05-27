@@ -22,13 +22,14 @@ class User(Base):
 class AmanetItem(Base):
     __tablename__ = "obiecte_amanet"
     id = Column(Integer, primary_key=True, index=True)
-    nume_client = Column(String, nullable=True)  # <--- ADDED: To allow searching by name
+    nume_client = Column(String, nullable=True)  # <--- Permite cautarea si gestiunea dupa nume
     nume = Column(String)
     categorie = Column(String)
     valoare_piata = Column(Float)
     suma_imprumutata = Column(Float)
     comision_zilnic = Column(Float, default=0.003)
-    status = Column(String, default="amanetat")  # statusuri: amanetat, prelungit, de_vanzare, vandut, returnat, rezervat
+    status = Column(String,
+                    default="amanetat")  # statusuri: amanetat, prelungit, de_vanzare, vandut, returnat, rezervat
     data_start_comision = Column(String)
     data_scadenta = Column(String)
     rezervat_de_id = Column(Integer, nullable=True)
@@ -50,7 +51,6 @@ Base.metadata.create_all(bind=engine)
 # --- APP SETUP ---
 app = FastAPI()
 from fastapi.staticfiles import StaticFiles
-
 
 # Permitem accesul din browser (CORS)
 app.add_middleware(
@@ -89,7 +89,7 @@ def amaneteaza_obiect(nume: str, categorie: str, valoare_piata: float, user_id: 
     scadenta = azi + timedelta(days=zile_contract)
 
     nou_obiect = AmanetItem(
-        nume_client=nume_client, # <--- ADDED: Saves the name directly to the item
+        nume_client=nume_client,
         nume=nume,
         categorie=categorie,
         valoare_piata=valoare_piata,
@@ -175,10 +175,8 @@ def get_toate_obiectele(db: Session = Depends(get_db)):
     return db.query(AmanetItem).all()
 
 
-# RUTA NOUA: Pentru cautare client dupa nume (utilizat in staff.html)
 @app.get("/cauta_client/{nume_cautat}")
 def cauta_client(nume_cautat: str, db: Session = Depends(get_db)):
-    # .ilike() makes the search case-insensitive and the % act as wildcards
     obiecte = db.query(AmanetItem).filter(AmanetItem.nume_client.ilike(f"%{nume_cautat}%")).all()
     if not obiecte:
         return {"eroare": "Nu s-a gasit niciun contract pentru acest nume."}
@@ -200,7 +198,6 @@ def rezerva_obiect(obiect_id: int, user_id: int, db: Session = Depends(get_db)):
 @app.get("/alerte_confiscare")
 def get_alerte_confiscare(db: Session = Depends(get_db)):
     azi = datetime.now()
-    # 5 zile de gratie
     limita_gratie = (azi - timedelta(days=5)).strftime("%Y-%m-%d")
 
     obiecte_expirate = db.query(AmanetItem).filter(
@@ -231,13 +228,47 @@ def calculeaza_schimb(suma: float, valuta: str, directie: str = "to_ron"):
     return {"mesaj_rezultat": mesaj, "curs_folosit": curs[v]}
 
 
+# --- RUTE NOI / ACTUALIZATE PENTRU ȘTERGERE ȘI CURĂȚARE DATE ---
+
 @app.delete("/sterge_contract/{obiect_id}")
 def sterge_contract(obiect_id: int, db: Session = Depends(get_db)):
     obiect = db.query(AmanetItem).filter(AmanetItem.id == obiect_id).first()
     if not obiect:
         return {"eroare": "Contractul nu a fost găsit în baza de date."}
 
+    # MODIFICARE: Ștergem mai întâi tranzacțiile asociate acestui contract ca să nu rămână orfane
+    db.query(Tranzactie).filter(Tranzactie.obiect_id == obiect_id).delete()
+
     db.delete(obiect)
     db.commit()
 
-    return {"mesaj": f"Contractul #{obiect_id} a fost șters definitiv din sistem."}
+    return {"mesaj": f"Contractul #{obiect_id} și toate tranzacțiile sale au fost șterse definitiv."}
+
+
+@app.delete("/sterge_client/{nume_client}")
+def sterge_client(nume_client: str, db: Session = Depends(get_db)):
+    """
+    Caută un client după nume (partial sau complet) și îi șterge toate contractele,
+    împreună cu toate tranzacțiile asociate acelor contracte sau înregistrate pe numele lui.
+    """
+    # Găsim contractele asociate numelui (folosind ilike pentru case-insensitivity)
+    contracte = db.query(AmanetItem).filter(AmanetItem.nume_client.ilike(f"%{nume_client}%")).all()
+
+    if not contracte:
+        return {"eroare": f"Nu s-au găsit contracte active sau înregistrări pentru clientul '{nume_client}'."}
+
+    numar_contracte = len(contracte)
+
+    # Parcurgem contractele găsite pentru a le șterge pe ele și tranzacțiile lor specifice
+    for contract in contracte:
+        db.query(Tranzactie).filter(Tranzactie.obiect_id == contract.id).delete()
+        db.delete(contract)
+
+    # În plus, ștergem orice alte înregistrări din tabela de tranzacții care conțin numele lui direct în coloana nume_client
+    db.query(Tranzactie).filter(Tranzactie.nume_client.ilike(f"%{nume_client}%")).delete()
+
+    db.commit()
+
+    return {
+        "mesaj": f"Clientul '{nume_client}' a fost eliminat. Au fost șterse în total {numar_contracte} contracte și istoricul tranzacțiilor aferente."
+    }
